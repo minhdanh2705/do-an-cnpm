@@ -80,3 +80,22 @@ export const deleteRoute = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server: ' + err.message });
     }
 };
+
+export const getStopsByRoute = async (req, res) => {
+    try {
+        const { id } = req.params; // idTuyen
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input('idTuyen', sql.Int, id)
+            .query(`
+                SELECT d.idDiemDung, d.tenDiemDung, d.kinhDo, d.viDo, tdd.thuTu
+                FROM TUYENDUONG_DIEMDUNG tdd
+                JOIN DIEMDUNG d ON tdd.idDiemDung = d.idDiemDung
+                WHERE tdd.idTuyenDuong = @idTuyen
+                ORDER BY tdd.thuTu ASC
+            `);
+        res.json({ success: true, data: result.recordset });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

@@ -1,26 +1,15 @@
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Button, MenuItem, FormControl, InputLabel, Select
 } from '@mui/material'
+import api from '../services/api' // Import api để gọi endpoint stops
 
 const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    hoTen: '',
-    lop: '',
-    idTuyen: '',
-    diemDon: '',
-    trangThai: 'Hoat dong',
-    idPhuHuynh: '', // SỬA: Dùng id đơn thay vì mảng
+    hoTen: '', lop: '', idTuyen: '', idDiemDon: '', idPhuHuynh: ''
   })
+  const [routeStops, setRouteStops] = useState([]) // Danh sách điểm đón theo tuyến
 
   useEffect(() => {
     if (student) {
@@ -28,139 +17,84 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
         hoTen: student.hoTen || '',
         lop: student.lop || '',
         idTuyen: student.idTuyen || '',
-        diemDon: student.diemDon || '',
-        trangThai: student.trangThai === 1 ? 'Hoat dong' : 'Nghi hoc',
-        // Lấy id phụ huynh (nếu backend trả về object phụ huynh thì lấy .id, nếu trả về số thì lấy trực tiếp)
-        idPhuHuynh: student.idPhuHuynh || '', 
+        idDiemDon: student.idDiemDon || '', // ID điểm đón
+        idPhuHuynh: student.idPhuHuynh || '',
       })
+      // Nếu đang sửa, load luôn điểm dừng của tuyến đó
+      if (student.idTuyen) fetchStops(student.idTuyen);
     } else {
-      setFormData({
-        hoTen: '',
-        lop: '',
-        idTuyen: '',
-        diemDon: '',
-        trangThai: 'Hoat dong',
-        idPhuHuynh: '', // Reset về rỗng khi thêm mới
-      })
+      // Mặc định thêm mới
+      setFormData({ hoTen: '', lop: '', idTuyen: '', idDiemDon: '', idPhuHuynh: '' })
+      setRouteStops([])
     }
   }, [student, open])
 
+  // Hàm lấy danh sách điểm dừng khi chọn tuyến
+  const fetchStops = async (routeId) => {
+    try {
+        const res = await api.get(`/routes/${routeId}/stops`);
+        setRouteStops(res.data?.data || []);
+    } catch (error) {
+        console.error("Lỗi tải điểm dừng:", error);
+        setRouteStops([]);
+    }
+  }
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Nếu thay đổi tuyến -> Load lại điểm dừng & Reset điểm đón cũ
+    if (name === 'idTuyen') {
+        setFormData(prev => ({ ...prev, idDiemDon: '' })); // Reset điểm đón
+        fetchStops(value);
+    }
   }
 
   const handleSubmit = () => {
-    const submitData = {
-      ...formData,
-      idTuyen: formData.idTuyen ? parseInt(formData.idTuyen) : null,
-      diemDon: formData.diemDon ? parseInt(formData.diemDon) : null,
-      trangThai: formData.trangThai === 'Hoat dong' ? 1 : 0,
-      // SỬA: Gửi idPhuHuynh dạng số
-      idPhuHuynh: formData.idPhuHuynh ? parseInt(formData.idPhuHuynh) : null, 
-    };
-    
-    // Xóa các trường thừa nếu có
-    delete submitData.parentIds; 
-
-    onSave(submitData);
+    onSave({
+        ...formData,
+        idTuyen: formData.idTuyen ? parseInt(formData.idTuyen) : null,
+        idDiemDon: formData.idDiemDon ? parseInt(formData.idDiemDon) : null,
+        idPhuHuynh: formData.idPhuHuynh ? parseInt(formData.idPhuHuynh) : null,
+        trangThai: 1 // Mặc định luôn là Hoạt động (1)
+    });
   }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{student ? 'Chỉnh sửa học sinh' : 'Thêm học sinh mới'}</DialogTitle>
       <DialogContent>
-        <TextField
-          name="hoTen"
-          label="Họ tên"
-          fullWidth
-          margin="normal"
-          value={formData.hoTen}
-          onChange={handleChange}
-          required
-        />
-        <TextField
-          name="lop"
-          label="Lớp"
-          fullWidth
-          margin="normal"
-          value={formData.lop}
-          onChange={handleChange}
-          required
-        />
+        <TextField name="hoTen" label="Họ tên" fullWidth margin="normal" value={formData.hoTen} onChange={handleChange} required />
+        <TextField name="lop" label="Lớp" fullWidth margin="normal" value={formData.lop} onChange={handleChange} required />
         
         {/* Chọn Tuyến */}
-        <TextField
-          name="idTuyen"
-          label="Tuyến xe"
-          select
-          fullWidth
-          margin="normal"
-          value={formData.idTuyen}
-          onChange={handleChange}
-        >
-          <MenuItem value="">-- Chọn tuyến xe --</MenuItem>
-          {routes && routes.map((route) => (
-            <MenuItem key={route.idTuyen || route.idTuyenDuong} value={route.idTuyen || route.idTuyenDuong}>
-              {route.tenTuyen}
+        <TextField select name="idTuyen" label="Tuyến xe" fullWidth margin="normal" value={formData.idTuyen} onChange={handleChange}>
+          {routes.map(r => <MenuItem key={r.idTuyenDuong} value={r.idTuyenDuong}>{r.tenTuyen}</MenuItem>)}
+        </TextField>
+
+        {/* Chọn Điểm đón (Chỉ hiện khi đã chọn tuyến) */}
+        <TextField select name="idDiemDon" label="Điểm đón (Theo tuyến đã chọn)" fullWidth margin="normal" value={formData.idDiemDon} onChange={handleChange} disabled={!formData.idTuyen}>
+          {routeStops.length === 0 && <MenuItem value=""><em>Không có điểm dừng nào</em></MenuItem>}
+          {routeStops.map(s => (
+            <MenuItem key={s.idDiemDung} value={s.idDiemDung}>
+              {s.thuTu}. {s.tenDiemDung}
             </MenuItem>
           ))}
         </TextField>
-
-        <TextField
-          name="diemDon"
-          label="ID Điểm đón (Nhập số)"
-          type="number"
-          fullWidth
-          margin="normal"
-          value={formData.diemDon}
-          onChange={handleChange}
-        />
         
-        {/* SỬA: Chọn Phụ Huynh (Single Select) */}
-        <FormControl fullWidth margin="normal">
-          <InputLabel id="phuhuynh-label">Phụ huynh</InputLabel>
-          <Select
-            labelId="phuhuynh-label"
-            name="idPhuHuynh"
-            value={formData.idPhuHuynh}
-            onChange={handleChange}
-            label="Phụ huynh"
-          >
-            <MenuItem value="">
-              <em>-- Chưa chọn phụ huynh --</em>
-            </MenuItem>
-            {parents && parents.map((parent) => (
-              <MenuItem key={parent.idPhuHuynh} value={parent.idPhuHuynh}>
-                {parent.hoTen} - {parent.soDienThoai}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <TextField
-          name="trangThai"
-          label="Trạng thái"
-          select
-          fullWidth
-          margin="normal"
-          value={formData.trangThai}
-          onChange={handleChange}
-        >
-          <MenuItem value="Hoat dong">Hoạt động</MenuItem>
-          <MenuItem value="Nghi hoc">Nghỉ học</MenuItem>
+        {/* Chọn Phụ Huynh */}
+        <TextField select name="idPhuHuynh" label="Phụ huynh" fullWidth margin="normal" value={formData.idPhuHuynh} onChange={handleChange}>
+            {parents.map(p => <MenuItem key={p.idPhuHuynh} value={p.idPhuHuynh}>{p.hoTen} - {p.soDienThoai}</MenuItem>)}
         </TextField>
+
+        {/* Bỏ chọn trạng thái - Mặc định hoạt động */}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Hủy</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          Lưu
-        </Button>
+        <Button onClick={handleSubmit} variant="contained">Lưu</Button>
       </DialogActions>
     </Dialog>
   )
 }
-
 export default StudentDialog

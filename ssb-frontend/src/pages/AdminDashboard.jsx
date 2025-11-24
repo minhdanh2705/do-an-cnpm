@@ -200,6 +200,15 @@ const AdminDashboard = () => {
         </>
       )}
 
+      <div className="dashboard-map-container" style={{height: '400px', position: 'relative'}}>
+    {/* Hiển thị map thật thay vì placeholder */}
+    <MapComponent 
+        center={[10.762622, 106.660172]} 
+        // Lấy danh sách xe đang chạy từ API tracking (nếu có) hoặc truyền rỗng tạm
+        buses={[]} 
+    />
+</div>
+
       {BusDialog && (
           <BusDialog
             open={busDialogOpen}
@@ -209,6 +218,7 @@ const AdminDashboard = () => {
         />
       )}
     </Box>
+    
   )
 }
 

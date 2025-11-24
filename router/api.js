@@ -9,6 +9,7 @@ import * as scheduleController from '../controllers/schedule-controller.js';
 import * as studentController from '../controllers/student-controller.js';
 import * as stopController from '../controllers/stop-controller.js';
 import { markAttendance } from '../controllers/attendance-controller.js';
+import { getStopsByRoute } from '../controllers/route-controller.js';
 
 const router = express.Router();
 
@@ -72,5 +73,7 @@ router.put('/stops/:id', stopController.updateStop);
 router.delete('/stops/:id', stopController.deleteStop);
 
 router.put('/attendance', markAttendance);
+
+router.get('/routes/:id/stops', getStopsByRoute);
 
 export default router;
