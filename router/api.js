@@ -70,4 +70,6 @@ router.post('/stops', stopController.createStop);
 router.put('/stops/:id', stopController.updateStop);
 router.delete('/stops/:id', stopController.deleteStop);
 
+router.put('/attendance', markAttendance);
+
 export default router;

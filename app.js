@@ -1,10 +1,15 @@
+// FILE: app.js
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import session from 'express-session';
-import { sql, pool } from './config/database.js';
+import cors from 'cors'; // Cần cài npm install cors nếu chưa có
+import dotenv from 'dotenv';
 
-// Import các router
+// Import kết nối DB
+import { sql, connectDB } from './config/database.js';
+
+// Import Routers
 import busRouter from './router/bus-router.js';
 import routeRouter from './router/route-router.js';
 import studentRouter from './router/student-router.js';
@@ -15,39 +20,34 @@ import parentRouter from './router/parent-router.js';
 import scheduleRouter from './router/schedule-router.js';
 import trackingRouter from './router/tracking-router.js';
 
+dotenv.config();
+
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
-});
+const PORT = 5000;
 
-const port = 5000;
-
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+// --- CẤU HÌNH CORS CHUẨN ---
+app.use(cors({
+    origin: 'http://localhost:3000', // Chỉ cho phép frontend React
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true // Cho phép gửi cookie/session
+}));
 
 app.use(express.json());
 
+// Session Config
 app.use(session({
-    secret: 'dev-secret-key',
+    secret: 'secret_key_smartbus',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+    cookie: {
+        secure: false, // Để false khi chạy localhost (http)
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 ngày
+    }
 }));
 
-// Gán router
+// Kết nối Router
 app.use('/api/auth', authRouter);
 app.use('/api/buses', busRouter);
 app.use('/api/routes', routeRouter);
@@ -58,47 +58,41 @@ app.use('/api/parents', parentRouter);
 app.use('/api/schedules', scheduleRouter);
 app.use('/api/tracking', trackingRouter);
 
-app.get('/', (req, res) => {
-    res.json({ 
-        message: 'SSB Backend API is running',
-        version: '1.0.0',
-        endpoints: [
-            '/api/auth', '/api/buses', '/api/routes', 
-            '/api/students', '/api/stops', '/api/drivers', 
-            '/api/parents', '/api/schedules', '/api/tracking'
-        ]
-    });
+// Socket.io Config
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:3000', // Phải khớp với frontend
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
 });
 
-app.use((err, req, res, next) => {
-    console.error('[v0] Error:', err.stack);
-    res.status(500).json({ 
-        success: false, 
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
-});
-
+// Middleware gán io vào req để dùng trong controller (nếu cần)
 app.use((req, res, next) => {
     req.io = io;
     next();
 });
 
 io.on('connection', (socket) => {
-    console.log(`[v0] Socket connected: ${socket.id}`);
+    console.log(`[Socket] User connected: ${socket.id}`);
 
     socket.on('driver:updateLocation', (data) => {
-        console.log(`[v0] Location update from driver:`, data);
+        console.log(`[Socket] Location update:`, data);
         io.emit('bus:locationUpdate', data);
     });
 
     socket.on('disconnect', () => {
-        console.log(`[v0] Socket disconnected: ${socket.id}`);
+        console.log(`[Socket] User disconnected: ${socket.id}`);
     });
 });
 
-server.listen(port, () => {
-    console.log(`Server đang chạy ở http://localhost:${port}`);
-    console.log(`Kiểm tra API: http://localhost:${port}/`);
-    console.log(`Socket.IO ready for real-time tracking`);
+// Route test
+app.get('/', (req, res) => {
+    res.json({ message: 'SSB Backend is running...' });
+});
+
+// Khởi động server
+server.listen(PORT, async () => {
+    await connectDB(); // Đảm bảo kết nối DB thành công trước khi log
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
 });
