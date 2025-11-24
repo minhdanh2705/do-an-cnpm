@@ -10,8 +10,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Chip,
-  Box,
 } from '@mui/material'
 
 const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
@@ -21,7 +19,7 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
     idTuyen: '',
     diemDon: '',
     trangThai: 'Hoat dong',
-    parentIds: [],
+    idPhuHuynh: '', // SỬA: Dùng id đơn thay vì mảng
   })
 
   useEffect(() => {
@@ -29,10 +27,11 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
       setFormData({
         hoTen: student.hoTen || '',
         lop: student.lop || '',
-        idTuyen: student.idTuyen || student.idTuyenXe || '', // Try both field names
+        idTuyen: student.idTuyen || '',
         diemDon: student.diemDon || '',
         trangThai: student.trangThai === 1 ? 'Hoat dong' : 'Nghi hoc',
-        parentIds: student.parentIds || [],
+        // Lấy id phụ huynh (nếu backend trả về object phụ huynh thì lấy .id, nếu trả về số thì lấy trực tiếp)
+        idPhuHuynh: student.idPhuHuynh || '', 
       })
     } else {
       setFormData({
@@ -41,7 +40,7 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
         idTuyen: '',
         diemDon: '',
         trangThai: 'Hoat dong',
-        parentIds: [],
+        idPhuHuynh: '', // Reset về rỗng khi thêm mới
       })
     }
   }, [student, open])
@@ -59,9 +58,13 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
       idTuyen: formData.idTuyen ? parseInt(formData.idTuyen) : null,
       diemDon: formData.diemDon ? parseInt(formData.diemDon) : null,
       trangThai: formData.trangThai === 'Hoat dong' ? 1 : 0,
-      parentIds: formData.parentIds,
+      // SỬA: Gửi idPhuHuynh dạng số
+      idPhuHuynh: formData.idPhuHuynh ? parseInt(formData.idPhuHuynh) : null, 
     };
     
+    // Xóa các trường thừa nếu có
+    delete submitData.parentIds; 
+
     onSave(submitData);
   }
 
@@ -87,6 +90,8 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
           onChange={handleChange}
           required
         />
+        
+        {/* Chọn Tuyến */}
         <TextField
           name="idTuyen"
           label="Tuyến xe"
@@ -97,42 +102,39 @@ const StudentDialog = ({ open, student, routes, parents, onClose, onSave }) => {
           onChange={handleChange}
         >
           <MenuItem value="">-- Chọn tuyến xe --</MenuItem>
-          {routes.map((route) => (
-            <MenuItem key={route.idTuyen} value={route.idTuyen}>
+          {routes && routes.map((route) => (
+            <MenuItem key={route.idTuyen || route.idTuyenDuong} value={route.idTuyen || route.idTuyenDuong}>
               {route.tenTuyen}
             </MenuItem>
           ))}
         </TextField>
+
         <TextField
           name="diemDon"
-          label="Điểm đón"
+          label="ID Điểm đón (Nhập số)"
+          type="number"
           fullWidth
           margin="normal"
           value={formData.diemDon}
           onChange={handleChange}
         />
         
+        {/* SỬA: Chọn Phụ Huynh (Single Select) */}
         <FormControl fullWidth margin="normal">
-          <InputLabel>Phụ huynh</InputLabel>
+          <InputLabel id="phuhuynh-label">Phụ huynh</InputLabel>
           <Select
-            name="parentIds"
-            multiple
-            value={formData.parentIds}
+            labelId="phuhuynh-label"
+            name="idPhuHuynh"
+            value={formData.idPhuHuynh}
             onChange={handleChange}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((value) => {
-                  const parent = parents.find(p => p.idPhuHuynh === value);
-                  return (
-                    <Chip key={value} label={parent?.hoTen || `ID: ${value}`} size="small" />
-                  );
-                })}
-              </Box>
-            )}
+            label="Phụ huynh"
           >
+            <MenuItem value="">
+              <em>-- Chưa chọn phụ huynh --</em>
+            </MenuItem>
             {parents && parents.map((parent) => (
               <MenuItem key={parent.idPhuHuynh} value={parent.idPhuHuynh}>
-                {parent.hoTen} - {parent.soDienThoai || 'N/A'}
+                {parent.hoTen} - {parent.soDienThoai}
               </MenuItem>
             ))}
           </Select>
