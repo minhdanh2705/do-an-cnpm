@@ -31,4 +31,4 @@ export const connectDB = async () => {
 
 export const pool = poolPromise;
 
-export { sql };
+export { sql, poolPromise };

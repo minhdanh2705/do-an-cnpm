@@ -8,6 +8,7 @@ import * as routeController from '../controllers/route-controller.js';
 import * as scheduleController from '../controllers/schedule-controller.js';
 import * as studentController from '../controllers/student-controller.js';
 import * as stopController from '../controllers/stop-controller.js';
+import { markAttendance } from '../controllers/attendance-controller.js';
 
 const router = express.Router();
 
